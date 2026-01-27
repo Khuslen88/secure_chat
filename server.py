@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 
 from chat import ChatManager
+from security import SecurityUtils
 
 app = Flask(__name__)
 chat = ChatManager()
@@ -26,8 +27,12 @@ def post_message():
     username = data["username"].strip()
     content = data["content"].strip()
 
-    if not username or not content:
-        return jsonify({"error": "username and content cannot be empty"}), 400
+    if not content:
+        return jsonify({"error": "Message content cannot be empty."}), 400
+
+    valid, err = SecurityUtils.validate_username(username)
+    if not valid:
+        return jsonify({"error": err}), 400
 
     message = chat.add_message(username, content)
     return jsonify(message), 201

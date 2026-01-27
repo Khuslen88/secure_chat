@@ -4,6 +4,8 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
+from security import SecurityUtils
+
 
 DATA_FILE = os.path.join(os.path.dirname(__file__), "data", "messages.json")
 
@@ -29,7 +31,8 @@ class ChatManager:
             json.dump(messages, f, indent=2)
 
     def add_message(self, username, content, filename=None):
-        """Add a new message. Returns the created message dict."""
+        """Add a new message. Sanitizes content before storage."""
+        content = SecurityUtils.sanitize_message(content)
         message = {
             "id": str(uuid.uuid4()),
             "username": username,

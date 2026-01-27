@@ -77,7 +77,11 @@ body {
 
 .message .meta .author {
     font-weight: 600;
-    color: #e94560;
+}
+
+.message .color-border {
+    border-left: 3px solid #e94560;
+    padding-left: 11px;
 }
 
 .message .body {
@@ -173,4 +177,18 @@ body {
     color: #ffaaaa;
     font-size: 0.85rem;
     text-align: center;
+}
+
+.security-footer {
+    padding: 10px 20px;
+    background: #0d1b2a;
+    border-top: 1px solid #0f3460;
+    font-size: 0.72rem;
+    color: #556;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.security-footer .shield {
+    color: #3a9e5c;
 }

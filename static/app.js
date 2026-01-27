@@ -12,6 +12,31 @@
 
     let lastMessageCount = 0;
 
+    // --- Per-user colors ---
+    const USER_COLORS = [
+        "#e94560", "#53a8e2", "#f0a500", "#6bcb77",
+        "#c77dff", "#ff6b6b", "#48bfe3", "#ffd166",
+    ];
+    const userColorMap = {};
+
+    function colorForUser(username) {
+        if (!userColorMap[username]) {
+            const idx = Object.keys(userColorMap).length % USER_COLORS.length;
+            userColorMap[username] = USER_COLORS[idx];
+        }
+        return userColorMap[username];
+    }
+
+    // --- File type icons ---
+    function fileIcon(filename) {
+        const ext = filename.split(".").pop().toLowerCase();
+        const icons = {
+            pdf: "📕", png: "🖼️", jpg: "🖼️", jpeg: "🖼️", gif: "🖼️",
+            txt: "📝", csv: "📊", docx: "📄",
+        };
+        return icons[ext] || "📎";
+    }
+
     // --- Error display ---
     function showError(msg) {
         errorBar.textContent = msg;
@@ -37,14 +62,17 @@
         messagesEl.innerHTML = "";
         messages.forEach((msg) => {
             const div = document.createElement("div");
-            div.className = "message";
+            div.className = "message color-border";
+            const color = colorForUser(msg.username);
+            div.style.borderLeftColor = color;
 
             const time = new Date(msg.timestamp).toLocaleTimeString();
-            let html = `<div class="meta"><span class="author">${escapeHtml(msg.username)}</span> · ${time}</div>`;
+            let html = `<div class="meta"><span class="author" style="color:${color}">${escapeHtml(msg.username)}</span> · ${time}</div>`;
             html += `<div class="body">${escapeHtml(msg.content)}</div>`;
 
             if (msg.filename) {
-                html += `<div class="attachment"><a href="/api/files/${encodeURIComponent(msg.filename)}" target="_blank">📄 ${escapeHtml(msg.filename)}</a></div>`;
+                const icon = fileIcon(msg.filename);
+                html += `<div class="attachment"><a href="/api/files/${encodeURIComponent(msg.filename)}" target="_blank">${icon} ${escapeHtml(msg.filename)}</a></div>`;
             }
 
             div.innerHTML = html;

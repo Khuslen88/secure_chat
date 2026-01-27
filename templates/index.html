@@ -31,6 +31,13 @@
             <button id="file-clear" title="Remove file">✕</button>
         </div>
         <div id="error-bar" class="error-bar" hidden></div>
+        <footer class="security-footer">
+            <span class="shield">🛡️</span> XSS sanitization (bleach)
+            · Path traversal protection (secure_filename)
+            · File type whitelist + magic bytes verification
+            · 5 MB upload limit
+            · Username validation
+        </footer>
     </div>
 
     <script src="/static/app.js"></script>

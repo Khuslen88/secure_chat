@@ -1,5 +1,8 @@
 __pycache__/
 *.pyc
 .venv/
+.env
 data/uploads/*
 !data/uploads/.gitkeep
+data/conversations/
+data/knowledge_base/

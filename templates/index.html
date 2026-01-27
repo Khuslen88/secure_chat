@@ -7,7 +7,32 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Secure Internal Chat</h1>
+    <div class="chat-container">
+        <header class="chat-header">
+            <h1>🔒 Secure Internal Chat</h1>
+            <div class="username-bar">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter your name" maxlength="20">
+            </div>
+        </header>
+
+        <div id="messages" class="message-list"></div>
+
+        <div class="input-bar">
+            <input type="text" id="message-input" placeholder="Type a message..." maxlength="2000">
+            <label class="upload-btn" title="Attach a file">
+                📎
+                <input type="file" id="file-input" hidden>
+            </label>
+            <button id="send-btn">Send</button>
+        </div>
+        <div id="file-preview" class="file-preview" hidden>
+            <span id="file-name"></span>
+            <button id="file-clear" title="Remove file">✕</button>
+        </div>
+        <div id="error-bar" class="error-bar" hidden></div>
+    </div>
+
     <script src="/static/app.js"></script>
 </body>
 </html>

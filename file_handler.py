@@ -2,10 +2,11 @@ import os
 
 from werkzeug.utils import secure_filename
 
+from config import Config
 from security import SecurityUtils
 
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "data", "uploads")
+UPLOAD_DIR = Config.UPLOAD_DIR
 
 
 class FileHandler:

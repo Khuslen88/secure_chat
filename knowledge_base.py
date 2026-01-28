@@ -117,22 +117,55 @@ class KnowledgeBase:
 
         return ""
 
+    STOP_WORDS = frozenset({
+        "the", "is", "a", "an", "what", "how", "do", "does", "are", "was",
+        "were", "be", "to", "of", "and", "in", "for", "on", "with", "at",
+        "by", "it", "i", "my", "me", "our", "this", "that", "can", "will",
+    })
+
     def get_relevant_context(self, user_query, max_chars=12000):
         """Retrieve knowledge base context relevant to a user query.
 
-        TODO(human): Implement the retrieval strategy.
-        Decide how to match user queries against document content
-        and return the most relevant excerpts.
-
-        Args:
-            user_query: The user's question.
-            max_chars: Maximum characters of context to return.
-
-        Returns:
-            A formatted string of relevant document excerpts,
-            or empty string if no knowledge base docs exist.
+        Uses keyword matching: splits the query into words, removes stop
+        words, then scores each document by how many keywords appear in
+        its extracted text. Returns the top-scoring documents formatted
+        as labeled sections, capped at max_chars.
         """
-        pass
+        index = self._read_index()
+        if not index:
+            return ""
+
+        # Build keyword set from the query
+        keywords = set(user_query.lower().split()) - self.STOP_WORDS
+        if not keywords:
+            keywords = set(user_query.lower().split())
+
+        # Score each document by keyword matches
+        scored = []
+        for entry in index:
+            text_path = os.path.join(Config.EXTRACTED_TEXT_DIR, f"{entry['id']}.txt")
+            if not os.path.exists(text_path):
+                continue
+            with open(text_path, "r") as f:
+                text = f.read()
+            text_lower = text.lower()
+            score = sum(1 for kw in keywords if kw in text_lower)
+            scored.append((entry, text, score))
+
+        # Sort by score descending
+        scored.sort(key=lambda item: item[2], reverse=True)
+
+        # Build output up to max_chars
+        result = ""
+        for entry, text, score in scored:
+            if score == 0:
+                continue
+            section = f"=== DOCUMENT: {entry['original_name']} ===\n{text}\n\n"
+            if len(result) + len(section) > max_chars:
+                break
+            result += section
+
+        return result
 
     def list_documents(self):
         """Return all documents in the knowledge base with metadata."""

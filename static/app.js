@@ -1,83 +1,77 @@
-// Secure Chat Frontend
+// Company AI Chatbot Frontend
 (function () {
+    // ── DOM Elements ───────────────────────────────────────────
     const messagesEl = document.getElementById("messages");
     const messageInput = document.getElementById("message-input");
     const sendBtn = document.getElementById("send-btn");
-    const usernameInput = document.getElementById("username");
     const fileInput = document.getElementById("file-input");
     const filePreview = document.getElementById("file-preview");
     const fileNameEl = document.getElementById("file-name");
     const fileClearBtn = document.getElementById("file-clear");
     const errorBar = document.getElementById("error-bar");
+    const typingIndicator = document.getElementById("typing-indicator");
+    const welcomeScreen = document.getElementById("welcome");
+    const newChatBtn = document.getElementById("new-chat-btn");
+    const convListEl = document.getElementById("conversation-list");
+    const kbFileInput = document.getElementById("kb-file-input");
+    const kbListEl = document.getElementById("kb-list");
 
-    let lastMessageCount = 0;
+    // ── State ──────────────────────────────────────────────────
+    let currentConversationId = null;
+    let isWaiting = false;
 
-    // --- Per-user colors ---
-    const USER_COLORS = [
-        "#e94560", "#53a8e2", "#f0a500", "#6bcb77",
-        "#c77dff", "#ff6b6b", "#48bfe3", "#ffd166",
-    ];
-    const userColorMap = {};
-
-    function colorForUser(username) {
-        if (!userColorMap[username]) {
-            const idx = Object.keys(userColorMap).length % USER_COLORS.length;
-            userColorMap[username] = USER_COLORS[idx];
-        }
-        return userColorMap[username];
-    }
-
-    // --- File type icons ---
-    function fileIcon(filename) {
-        const ext = filename.split(".").pop().toLowerCase();
-        const icons = {
-            pdf: "📕", png: "🖼️", jpg: "🖼️", jpeg: "🖼️", gif: "🖼️",
-            txt: "📝", csv: "📊", docx: "📄",
-        };
-        return icons[ext] || "📎";
-    }
-
-    // --- Error display ---
+    // ── Error Display ──────────────────────────────────────────
     function showError(msg) {
         errorBar.textContent = msg;
         errorBar.hidden = false;
-        setTimeout(() => { errorBar.hidden = true; }, 4000);
+        setTimeout(() => { errorBar.hidden = true; }, 5000);
     }
 
-    // --- File preview ---
-    fileInput.addEventListener("change", () => {
-        if (fileInput.files.length > 0) {
-            fileNameEl.textContent = "📎 " + fileInput.files[0].name;
-            filePreview.hidden = false;
-        }
-    });
+    // ── Markdown Renderer ──────────────────────────────────────
+    function renderMarkdown(text) {
+        // Escape HTML first for safety
+        let html = escapeHtml(text);
 
-    fileClearBtn.addEventListener("click", () => {
-        fileInput.value = "";
-        filePreview.hidden = true;
-    });
-
-    // --- Render messages ---
-    function renderMessages(messages) {
-        messagesEl.innerHTML = "";
-        messages.forEach((msg) => {
-            const div = document.createElement("div");
-            div.className = "message color-border";
-            const color = colorForUser(msg.username);
-            div.style.borderLeftColor = color;
-
-            const time = new Date(msg.timestamp).toLocaleTimeString();
-            let html = `<div class="meta"><span class="author" style="color:${color}">${escapeHtml(msg.username)}</span> · ${time}</div>`;
-            html += `<div class="body">${escapeHtml(msg.content)}</div>`;
-
-            if (msg.filename) {
-                const icon = fileIcon(msg.filename);
-                html += `<div class="attachment"><a href="/api/files/${encodeURIComponent(msg.filename)}" target="_blank">${icon} ${escapeHtml(msg.filename)}</a></div>`;
-            }
-
-            div.innerHTML = html;
-            messagesEl.appendChild(div);
+        // Code blocks (``` ... ```)
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
+            return '<pre><code>' + code.trim() + '</code></pre>';
         });
+
+        // Inline code (`...`)
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Headers (###, ##, #)
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+        // Bold (**...**)
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+        // Italic (*...*)
+        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        // Unordered lists (- item)
+        html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+        // Ordered lists (1. item)
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+        // Paragraphs (double newlines)
+        html = html.replace(/\n\n/g, '</p><p>');
+        html = '<p>' + html + '</p>';
+
+        // Clean up empty paragraphs
+        html = html.replace(/<p>\s*<\/p>/g, '');
+        html = html.replace(/<p>\s*(<h[123]>)/g, '$1');
+        html = html.replace(/(<\/h[123]>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<pre>)/g, '$1');
+        html = html.replace(/(<\/pre>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<ul>)/g, '$1');
+        html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+
+        return html;
     }
 
     function escapeHtml(text) {
@@ -86,86 +80,311 @@
         return div.innerHTML;
     }
 
-    // --- Fetch messages ---
-    async function fetchMessages() {
-        try {
-            const resp = await fetch("/api/messages");
-            const messages = await resp.json();
-            if (messages.length !== lastMessageCount) {
-                lastMessageCount = messages.length;
-                renderMessages(messages);
-                messagesEl.scrollTop = messagesEl.scrollHeight;
-            }
-        } catch (err) {
-            console.error("Failed to fetch messages:", err);
+    // ── Message Rendering ──────────────────────────────────────
+    function renderMessage(role, content) {
+        if (welcomeScreen) welcomeScreen.remove();
+
+        const div = document.createElement("div");
+        div.className = "message " + role;
+
+        const label = document.createElement("div");
+        label.className = "msg-label";
+        label.textContent = role === "user" ? "You" : "🤖 Assistant";
+        div.appendChild(label);
+
+        const body = document.createElement("div");
+        body.className = "msg-body";
+        if (role === "assistant") {
+            body.innerHTML = renderMarkdown(content);
+        } else {
+            body.textContent = content;
         }
+        div.appendChild(body);
+
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    // --- Send message ---
-    async function sendMessage() {
-        const username = usernameInput.value.trim();
-        const content = messageInput.value.trim();
+    function clearMessages() {
+        messagesEl.innerHTML = "";
+    }
 
-        if (!username) {
-            showError("Please enter a username.");
-            usernameInput.focus();
-            return;
-        }
-        if (!content && fileInput.files.length === 0) {
+    // ── Chat API ───────────────────────────────────────────────
+    async function sendMessage(text) {
+        if (isWaiting) return;
+        const message = text || messageInput.value.trim();
+        const hasFile = fileInput.files.length > 0;
+
+        if (!message && !hasFile) {
             showError("Please enter a message or attach a file.");
             return;
         }
 
-        // If there is a file, upload it
-        if (fileInput.files.length > 0) {
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-            formData.append("username", username);
-            formData.append("content", content || "(file shared)");
+        isWaiting = true;
+        sendBtn.disabled = true;
 
-            try {
-                const resp = await fetch("/api/upload", { method: "POST", body: formData });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showError(data.error || "Upload failed.");
-                    return;
-                }
-            } catch (err) {
-                showError("Upload failed: " + err.message);
-                return;
-            }
-
-            fileInput.value = "";
-            filePreview.hidden = true;
-        } else {
-            // Text-only message
-            try {
-                const resp = await fetch("/api/messages", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, content }),
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showError(data.error || "Failed to send message.");
-                    return;
-                }
-            } catch (err) {
-                showError("Failed to send message: " + err.message);
-                return;
-            }
-        }
+        // Render user message immediately
+        if (message) renderMessage("user", message);
+        if (hasFile) renderMessage("user", "📎 " + fileInput.files[0].name + (message ? "\n" + message : ""));
 
         messageInput.value = "";
-        fetchMessages();
+        messageInput.style.height = "auto";
+
+        // Show typing indicator
+        typingIndicator.hidden = false;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        try {
+            let data;
+
+            if (hasFile) {
+                // File upload path
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+                if (message) formData.append("message", message);
+                if (currentConversationId) formData.append("conversation_id", currentConversationId);
+
+                const resp = await fetch("/api/chat/upload", { method: "POST", body: formData });
+                data = await resp.json();
+                if (!resp.ok) { showError(data.error || "Upload failed."); return; }
+
+                fileInput.value = "";
+                filePreview.hidden = true;
+            } else {
+                // Text-only path
+                const payload = { message };
+                if (currentConversationId) payload.conversation_id = currentConversationId;
+
+                const resp = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                data = await resp.json();
+                if (!resp.ok) { showError(data.error || "Failed to send message."); return; }
+            }
+
+            // Update conversation ID
+            if (data.conversation_id) currentConversationId = data.conversation_id;
+
+            // Render AI response
+            if (data.assistant_message) {
+                renderMessage("assistant", data.assistant_message.content);
+            }
+
+            // Refresh sidebar
+            loadConversationList();
+
+        } catch (err) {
+            showError("Connection error: " + err.message);
+        } finally {
+            isWaiting = false;
+            sendBtn.disabled = false;
+            typingIndicator.hidden = true;
+        }
     }
 
-    sendBtn.addEventListener("click", sendMessage);
-    messageInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendMessage();
+    // ── Conversation Management ────────────────────────────────
+    async function loadConversation(convId) {
+        currentConversationId = convId;
+        clearMessages();
+
+        try {
+            const resp = await fetch("/api/conversations/" + convId);
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            data.messages.forEach(function (msg) {
+                renderMessage(msg.role, msg.content);
+            });
+
+            // Highlight active in sidebar
+            document.querySelectorAll(".conv-item").forEach(function (el) {
+                el.classList.toggle("active", el.dataset.id === convId);
+            });
+        } catch (err) {
+            showError("Failed to load conversation.");
+        }
+    }
+
+    async function loadConversationList() {
+        try {
+            const resp = await fetch("/api/conversations");
+            const convos = await resp.json();
+
+            convListEl.innerHTML = "";
+            convos.forEach(function (conv) {
+                const div = document.createElement("div");
+                div.className = "conv-item" + (conv.id === currentConversationId ? " active" : "");
+                div.dataset.id = conv.id;
+                div.textContent = conv.preview || "New conversation";
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "conv-delete";
+                delBtn.textContent = "✕";
+                delBtn.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    deleteConversation(conv.id);
+                });
+                div.appendChild(delBtn);
+
+                div.addEventListener("click", function () {
+                    loadConversation(conv.id);
+                });
+
+                convListEl.appendChild(div);
+            });
+        } catch (err) {
+            console.error("Failed to load conversations:", err);
+        }
+    }
+
+    async function deleteConversation(convId) {
+        try {
+            await fetch("/api/conversations/" + convId, { method: "DELETE" });
+            if (currentConversationId === convId) {
+                newConversation();
+            }
+            loadConversationList();
+        } catch (err) {
+            showError("Failed to delete conversation.");
+        }
+    }
+
+    function newConversation() {
+        currentConversationId = null;
+        clearMessages();
+        // Re-add welcome screen
+        const welcome = document.createElement("div");
+        welcome.id = "welcome";
+        welcome.className = "welcome-screen";
+        welcome.innerHTML =
+            '<h2>How can I help you today?</h2>' +
+            '<p class="welcome-sub">I can answer company questions, summarize documents, help with IT issues, or assist with writing tasks.</p>' +
+            '<div class="quick-actions">' +
+                '<button class="quick-action" data-prompt="What are the company\'s PTO policies?">🏖️ PTO Policies</button>' +
+                '<button class="quick-action" data-prompt="How do I reset my password?">🔑 Password Reset</button>' +
+                '<button class="quick-action" data-prompt="Help me draft a professional email to my team about a project deadline">✉️ Draft Email</button>' +
+                '<button class="quick-action" data-prompt="What is the onboarding process for new hires?">🚀 Onboarding Info</button>' +
+            '</div>';
+        messagesEl.appendChild(welcome);
+        bindQuickActions();
+
+        document.querySelectorAll(".conv-item").forEach(function (el) {
+            el.classList.remove("active");
+        });
+    }
+
+    // ── Knowledge Base ─────────────────────────────────────────
+    async function loadKnowledgeBase() {
+        try {
+            const resp = await fetch("/api/knowledge-base");
+            const docs = await resp.json();
+
+            kbListEl.innerHTML = "";
+            if (docs.length === 0) {
+                kbListEl.innerHTML = '<div style="font-size:0.75rem;color:#555;padding:4px 8px">No documents yet</div>';
+                return;
+            }
+            docs.forEach(function (doc) {
+                const div = document.createElement("div");
+                div.className = "kb-item";
+
+                const name = document.createElement("span");
+                name.className = "kb-name";
+                name.textContent = "📄 " + doc.original_name;
+                div.appendChild(name);
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "kb-delete";
+                delBtn.textContent = "✕";
+                delBtn.addEventListener("click", function () {
+                    deleteKBDoc(doc.id);
+                });
+                div.appendChild(delBtn);
+
+                kbListEl.appendChild(div);
+            });
+        } catch (err) {
+            console.error("Failed to load knowledge base:", err);
+        }
+    }
+
+    async function uploadKBDoc(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const resp = await fetch("/api/knowledge-base", { method: "POST", body: formData });
+            const data = await resp.json();
+            if (!resp.ok) {
+                showError(data.error || "KB upload failed.");
+                return;
+            }
+            loadKnowledgeBase();
+        } catch (err) {
+            showError("KB upload failed: " + err.message);
+        }
+    }
+
+    async function deleteKBDoc(docId) {
+        try {
+            await fetch("/api/knowledge-base/" + docId, { method: "DELETE" });
+            loadKnowledgeBase();
+        } catch (err) {
+            showError("Failed to delete document.");
+        }
+    }
+
+    // ── Quick Actions ──────────────────────────────────────────
+    function bindQuickActions() {
+        document.querySelectorAll(".quick-action").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                sendMessage(btn.dataset.prompt);
+            });
+        });
+    }
+
+    // ── File Preview ───────────────────────────────────────────
+    fileInput.addEventListener("change", function () {
+        if (fileInput.files.length > 0) {
+            fileNameEl.textContent = "📎 " + fileInput.files[0].name;
+            filePreview.hidden = false;
+        }
     });
 
-    // Poll for new messages every 2 seconds
-    fetchMessages();
-    setInterval(fetchMessages, 2000);
+    fileClearBtn.addEventListener("click", function () {
+        fileInput.value = "";
+        filePreview.hidden = true;
+    });
+
+    // ── Auto-expanding Textarea ────────────────────────────────
+    messageInput.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 120) + "px";
+    });
+
+    // ── Event Bindings ─────────────────────────────────────────
+    sendBtn.addEventListener("click", function () { sendMessage(); });
+
+    messageInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    newChatBtn.addEventListener("click", newConversation);
+
+    kbFileInput.addEventListener("change", function () {
+        if (kbFileInput.files.length > 0) {
+            uploadKBDoc(kbFileInput.files[0]);
+            kbFileInput.value = "";
+        }
+    });
+
+    // ── Initialize ─────────────────────────────────────────────
+    bindQuickActions();
+    loadConversationList();
+    loadKnowledgeBase();
 })();

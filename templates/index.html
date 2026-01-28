@@ -3,41 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Chat</title>
+    <title>Company AI Assistant</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <header class="chat-header">
-            <h1>🔒 Secure Internal Chat</h1>
-            <div class="username-bar">
-                <label for="username">Username:</label>
-                <input type="text" id="username" placeholder="Enter your name" maxlength="20">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>💬 Chats</h2>
+                <button id="new-chat-btn" title="New conversation">+ New</button>
             </div>
-        </header>
+            <div id="conversation-list" class="conversation-list"></div>
 
-        <div id="messages" class="message-list"></div>
+            <div class="sidebar-section">
+                <h3>📚 Knowledge Base</h3>
+                <label class="kb-upload-btn">
+                    + Upload Document
+                    <input type="file" id="kb-file-input" hidden
+                           accept=".pdf,.txt,.docx,.csv">
+                </label>
+                <div id="kb-list" class="kb-list"></div>
+            </div>
+        </aside>
 
-        <div class="input-bar">
-            <input type="text" id="message-input" placeholder="Type a message..." maxlength="2000">
-            <label class="upload-btn" title="Attach a file">
-                📎
-                <input type="file" id="file-input" hidden>
-            </label>
-            <button id="send-btn">Send</button>
-        </div>
-        <div id="file-preview" class="file-preview" hidden>
-            <span id="file-name"></span>
-            <button id="file-clear" title="Remove file">✕</button>
-        </div>
-        <div id="error-bar" class="error-bar" hidden></div>
-        <footer class="security-footer">
-            <span class="shield">🛡️</span> XSS sanitization (bleach)
-            · Path traversal protection (secure_filename)
-            · File type whitelist + magic bytes verification
-            · 5 MB upload limit
-            · Username validation
-        </footer>
+        <!-- Main chat area -->
+        <main class="chat-main">
+            <header class="chat-header">
+                <h1>🤖 Company Internal Assistant</h1>
+                <div class="capability-tags">
+                    <span class="tag">Company Q&A</span>
+                    <span class="tag">Document Summary</span>
+                    <span class="tag">IT Helpdesk</span>
+                    <span class="tag">General Assistant</span>
+                </div>
+            </header>
+
+            <div id="messages" class="message-list">
+                <div id="welcome" class="welcome-screen">
+                    <h2>How can I help you today?</h2>
+                    <p class="welcome-sub">I can answer company questions, summarize documents, help with IT issues, or assist with writing tasks.</p>
+                    <div class="quick-actions">
+                        <button class="quick-action" data-prompt="What are the company's PTO policies?">
+                            🏖️ PTO Policies
+                        </button>
+                        <button class="quick-action" data-prompt="How do I reset my password?">
+                            🔑 Password Reset
+                        </button>
+                        <button class="quick-action" data-prompt="Help me draft a professional email to my team about a project deadline">
+                            ✉️ Draft Email
+                        </button>
+                        <button class="quick-action" data-prompt="What is the onboarding process for new hires?">
+                            🚀 Onboarding Info
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="typing-indicator" class="typing-indicator" hidden>
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="typing-text">Assistant is thinking...</span>
+            </div>
+
+            <div class="input-bar">
+                <label class="upload-btn" title="Attach a document for analysis">
+                    📎
+                    <input type="file" id="file-input" hidden
+                           accept=".pdf,.txt,.docx,.csv,.png,.jpg,.jpeg,.gif">
+                </label>
+                <textarea id="message-input"
+                          placeholder="Ask about company policies, IT help, or anything..."
+                          rows="1"></textarea>
+                <button id="send-btn" title="Send">Send</button>
+            </div>
+            <div id="file-preview" class="file-preview" hidden>
+                <span id="file-name"></span>
+                <button id="file-clear" title="Remove file">✕</button>
+            </div>
+            <div id="error-bar" class="error-bar" hidden></div>
+
+            <footer class="security-footer">
+                <span class="shield">🛡️</span>
+                Powered by Claude AI · XSS sanitization · Path traversal protection · File type whitelist · 5MB upload limit
+            </footer>
+        </main>
     </div>
 
     <script src="/static/app.js"></script>

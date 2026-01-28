@@ -1,5 +1,4 @@
 import os
-import re
 
 import bleach
 
@@ -9,9 +8,6 @@ class SecurityUtils:
 
     # Allowed HTML tags (empty = strip all tags)
     ALLOWED_TAGS = []
-    USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
-    USERNAME_MIN = 1
-    USERNAME_MAX = 20
 
     @staticmethod
     def sanitize_message(content):
@@ -20,23 +16,6 @@ class SecurityUtils:
         Uses bleach to remove dangerous markup. Returns cleaned plain text.
         """
         return bleach.clean(content, tags=SecurityUtils.ALLOWED_TAGS, strip=True).strip()
-
-    @staticmethod
-    def validate_username(name):
-        """Validate username: alphanumeric + underscore, 1-20 chars.
-
-        Returns (is_valid, error_message) tuple.
-        """
-        if not name or not name.strip():
-            return False, "Username is required."
-        name = name.strip()
-        if len(name) < SecurityUtils.USERNAME_MIN:
-            return False, "Username is too short."
-        if len(name) > SecurityUtils.USERNAME_MAX:
-            return False, f"Username must be at most {SecurityUtils.USERNAME_MAX} characters."
-        if not SecurityUtils.USERNAME_PATTERN.match(name):
-            return False, "Username may only contain letters, numbers, and underscores."
-        return True, None
 
     ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".docx", ".gif", ".csv"}
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB

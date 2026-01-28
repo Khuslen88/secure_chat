@@ -24,7 +24,7 @@
     function showError(msg) {
         errorBar.textContent = msg;
         errorBar.hidden = false;
-        setTimeout(() => { errorBar.hidden = true; }, 5000);
+        setTimeout(function () { errorBar.hidden = true; }, 6000);
     }
 
     // ── Markdown Renderer ──────────────────────────────────────

@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template, request, jsonify, send_file
 
 from ai_client import AIClient
@@ -11,7 +13,14 @@ app = Flask(__name__)
 conversations = ConversationManager()
 files = FileHandler()
 kb = KnowledgeBase()
-ai = AIClient()
+
+try:
+    ai = AIClient()
+except RuntimeError as e:
+    import sys
+    print(f"\n⚠️  WARNING: {e}", file=sys.stderr)
+    print("   The chatbot UI will load, but AI features are disabled.\n", file=sys.stderr)
+    ai = None
 
 
 # ── Page ──────────────────────────────────────────────────────────
@@ -26,6 +35,9 @@ def index():
 @app.route("/api/chat", methods=["POST"])
 def chat_message():
     """Send a message and get an AI response."""
+    if ai is None:
+        return jsonify({"error": "AI service unavailable. ANTHROPIC_API_KEY is not configured."}), 503
+
     data = request.get_json()
     if not data or "message" not in data:
         return jsonify({"error": "message is required."}), 400
@@ -70,6 +82,9 @@ def chat_message():
 @app.route("/api/chat/upload", methods=["POST"])
 def chat_with_document():
     """Upload a document for summarization or Q&A within a conversation."""
+    if ai is None:
+        return jsonify({"error": "AI service unavailable. ANTHROPIC_API_KEY is not configured."}), 503
+
     if "file" not in request.files:
         return jsonify({"error": "No file provided."}), 400
 
@@ -85,7 +100,6 @@ def chat_with_document():
     saved_filename = result
 
     # Extract text from the saved file
-    import os
     file_path = files.get_file_path(saved_filename)
     ext = os.path.splitext(saved_filename)[1].lower()
     try:

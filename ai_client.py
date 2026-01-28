@@ -59,6 +59,11 @@ class AIClient:
     """Wrapper around the Anthropic Python SDK for Claude API calls."""
 
     def __init__(self):
+        if not Config.ANTHROPIC_API_KEY:
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY environment variable is not set. "
+                "Set it with: export ANTHROPIC_API_KEY='your-key-here'"
+            )
         self._client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
         self.model = Config.ANTHROPIC_MODEL
         self.max_tokens = Config.MAX_TOKENS

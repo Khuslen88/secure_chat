@@ -1,65 +1,175 @@
 from flask import Flask, render_template, request, jsonify, send_file
 
-from chat import ChatManager
+from ai_client import AIClient
+from chat import ConversationManager
+from config import Config
 from file_handler import FileHandler
+from knowledge_base import KnowledgeBase
 from security import SecurityUtils
 
 app = Flask(__name__)
-chat = ChatManager()
+conversations = ConversationManager()
 files = FileHandler()
+kb = KnowledgeBase()
+ai = AIClient()
 
+
+# ── Page ──────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-@app.route("/api/messages", methods=["GET"])
-def get_messages():
-    limit = request.args.get("limit", 50, type=int)
-    return jsonify(chat.get_messages(limit))
+# ── Chat ──────────────────────────────────────────────────────────
 
-
-@app.route("/api/messages", methods=["POST"])
-def post_message():
+@app.route("/api/chat", methods=["POST"])
+def chat_message():
+    """Send a message and get an AI response."""
     data = request.get_json()
-    if not data or "username" not in data or "content" not in data:
-        return jsonify({"error": "username and content are required"}), 400
+    if not data or "message" not in data:
+        return jsonify({"error": "message is required."}), 400
 
-    username = data["username"].strip()
-    content = data["content"].strip()
+    user_message = data["message"].strip()
+    if not user_message:
+        return jsonify({"error": "Message cannot be empty."}), 400
 
-    if not content:
-        return jsonify({"error": "Message content cannot be empty."}), 400
+    conversation_id = data.get("conversation_id")
 
-    valid, err = SecurityUtils.validate_username(username)
-    if not valid:
-        return jsonify({"error": err}), 400
+    # Create new conversation if needed
+    if not conversation_id:
+        conversation_id = conversations.create_conversation()
 
-    message = chat.add_message(username, content)
-    return jsonify(message), 201
+    # Verify conversation exists
+    if conversations.get_full_conversation(conversation_id) is None:
+        conversation_id = conversations.create_conversation()
+
+    # Get conversation history and knowledge context
+    history = conversations.get_history(conversation_id)
+    knowledge_context = kb.get_relevant_context(user_message)
+
+    # Save user message
+    user_msg = conversations.add_message(conversation_id, "user", user_message)
+
+    # Get AI response
+    try:
+        ai_response = ai.send_message(history, user_message, knowledge_context)
+    except Exception as e:
+        return jsonify({"error": f"AI service error: {e}"}), 502
+
+    # Save assistant message
+    assistant_msg = conversations.add_message(conversation_id, "assistant", ai_response)
+
+    return jsonify({
+        "conversation_id": conversation_id,
+        "user_message": user_msg,
+        "assistant_message": assistant_msg,
+    }), 200
 
 
-@app.route("/api/upload", methods=["POST"])
-def upload_file():
+@app.route("/api/chat/upload", methods=["POST"])
+def chat_with_document():
+    """Upload a document for summarization or Q&A within a conversation."""
     if "file" not in request.files:
         return jsonify({"error": "No file provided."}), 400
 
     file = request.files["file"]
-    username = request.form.get("username", "").strip()
-    content = request.form.get("content", "").strip() or "(file shared)"
+    user_query = request.form.get("message", "").strip()
+    conversation_id = request.form.get("conversation_id", "").strip() or None
 
-    valid, err = SecurityUtils.validate_username(username)
-    if not valid:
-        return jsonify({"error": err}), 400
-
+    # Save the file
     success, result = files.save_file(file)
     if not success:
         return jsonify({"error": result}), 400
 
-    message = chat.add_message(username, content, filename=result)
-    return jsonify(message), 201
+    saved_filename = result
 
+    # Extract text from the saved file
+    import os
+    file_path = files.get_file_path(saved_filename)
+    ext = os.path.splitext(saved_filename)[1].lower()
+    try:
+        document_text = kb.extract_text(file_path, ext)
+    except Exception as e:
+        return jsonify({"error": f"Could not read document: {e}"}), 400
+
+    if not document_text.strip():
+        return jsonify({"error": "Could not extract text from this file."}), 400
+
+    # Create conversation if needed
+    if not conversation_id:
+        conversation_id = conversations.create_conversation()
+    if conversations.get_full_conversation(conversation_id) is None:
+        conversation_id = conversations.create_conversation()
+
+    # Build user message description
+    display_msg = user_query or f"Please summarize this document."
+    user_content = f"[Uploaded: {saved_filename}] {display_msg}"
+    conversations.add_message(conversation_id, "user", user_content)
+
+    # Get AI summary/answer
+    try:
+        ai_response = ai.summarize_document(document_text, user_query)
+    except Exception as e:
+        return jsonify({"error": f"AI service error: {e}"}), 502
+
+    assistant_msg = conversations.add_message(conversation_id, "assistant", ai_response)
+
+    return jsonify({
+        "conversation_id": conversation_id,
+        "assistant_message": assistant_msg,
+        "document_name": saved_filename,
+    }), 200
+
+
+# ── Conversations ─────────────────────────────────────────────────
+
+@app.route("/api/conversations", methods=["GET"])
+def list_conversations():
+    return jsonify(conversations.list_conversations())
+
+
+@app.route("/api/conversations/<conversation_id>", methods=["GET"])
+def get_conversation(conversation_id):
+    data = conversations.get_full_conversation(conversation_id)
+    if data is None:
+        return jsonify({"error": "Conversation not found."}), 404
+    return jsonify(data)
+
+
+@app.route("/api/conversations/<conversation_id>", methods=["DELETE"])
+def delete_conversation(conversation_id):
+    if conversations.clear_conversation(conversation_id):
+        return jsonify({"success": True})
+    return jsonify({"error": "Conversation not found."}), 404
+
+
+# ── Knowledge Base ────────────────────────────────────────────────
+
+@app.route("/api/knowledge-base", methods=["GET"])
+def list_knowledge_base():
+    return jsonify(kb.list_documents())
+
+
+@app.route("/api/knowledge-base", methods=["POST"])
+def upload_to_knowledge_base():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided."}), 400
+
+    success, result = kb.add_document(request.files["file"])
+    if not success:
+        return jsonify({"error": result}), 400
+    return jsonify({"doc_id": result, "success": True}), 201
+
+
+@app.route("/api/knowledge-base/<doc_id>", methods=["DELETE"])
+def remove_from_knowledge_base(doc_id):
+    if kb.remove_document(doc_id):
+        return jsonify({"success": True})
+    return jsonify({"error": "Document not found."}), 404
+
+
+# ── File Downloads (kept from original) ───────────────────────────
 
 @app.route("/api/files/<filename>")
 def download_file(filename):

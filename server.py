@@ -36,7 +36,7 @@ def index():
 def chat_message():
     """Send a message and get an AI response."""
     if ai is None:
-        return jsonify({"error": "AI service unavailable. ANTHROPIC_API_KEY is not configured."}), 503
+        return jsonify({"error": "AI service unavailable. GROQ_API_KEY is not configured."}), 503
 
     data = request.get_json()
     if not data or "message" not in data:
@@ -83,7 +83,7 @@ def chat_message():
 def chat_with_document():
     """Upload a document for summarization or Q&A within a conversation."""
     if ai is None:
-        return jsonify({"error": "AI service unavailable. ANTHROPIC_API_KEY is not configured."}), 503
+        return jsonify({"error": "AI service unavailable. GROQ_API_KEY is not configured."}), 503
 
     if "file" not in request.files:
         return jsonify({"error": "No file provided."}), 400
@@ -194,4 +194,4 @@ def download_file(filename):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8080, host="0.0.0.0")

@@ -1,4 +1,4 @@
-import anthropic
+from groq import Groq
 
 from config import Config
 
@@ -56,16 +56,16 @@ specific information.
 
 
 class AIClient:
-    """Wrapper around the Anthropic Python SDK for Claude API calls."""
+    """Wrapper around the Groq Python SDK for Llama API calls."""
 
     def __init__(self):
-        if not Config.ANTHROPIC_API_KEY:
+        if not Config.GROQ_API_KEY:
             raise RuntimeError(
-                "ANTHROPIC_API_KEY environment variable is not set. "
-                "Set it with: export ANTHROPIC_API_KEY='your-key-here'"
+                "GROQ_API_KEY environment variable is not set. "
+                "Set it with: export GROQ_API_KEY='your-key-here'"
             )
-        self._client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
-        self.model = Config.ANTHROPIC_MODEL
+        self._client = Groq(api_key=Config.GROQ_API_KEY)
+        self.model = Config.GROQ_MODEL
         self.max_tokens = Config.MAX_TOKENS
 
     def build_system_prompt(self, knowledge_context=""):
@@ -81,7 +81,7 @@ class AIClient:
         )
 
     def send_message(self, conversation_history, user_message, knowledge_context=""):
-        """Send a message to Claude and return the assistant response.
+        """Send a message to Groq and return the assistant response.
 
         Args:
             conversation_history: List of {"role": "user"|"assistant", "content": str}.
@@ -93,18 +93,17 @@ class AIClient:
         """
         system_prompt = self.build_system_prompt(knowledge_context)
 
-        messages = list(conversation_history) + [
+        messages = [{"role": "system", "content": system_prompt}] + list(conversation_history) + [
             {"role": "user", "content": user_message}
         ]
 
-        response = self._client.messages.create(
+        response = self._client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=system_prompt,
             messages=messages,
         )
 
-        return response.content[0].text
+        return response.choices[0].message.content
 
     def summarize_document(self, document_text, user_query=""):
         """Summarize a document or answer questions about it.
@@ -114,7 +113,7 @@ class AIClient:
             user_query: Optional specific question about the document.
 
         Returns:
-            Summary or answer string from Claude.
+            Summary or answer string from Groq.
         """
         if user_query:
             prompt = (
@@ -128,11 +127,13 @@ class AIClient:
                 f"---\nDOCUMENT:\n{document_text}"
             )
 
-        response = self._client.messages.create(
+        response = self._client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system="You are a document analysis assistant. Provide clear, accurate summaries and answers.",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You are a document analysis assistant. Provide clear, accurate summaries and answers."},
+                {"role": "user", "content": prompt},
+            ],
         )
 
-        return response.content[0].text
+        return response.choices[0].message.content

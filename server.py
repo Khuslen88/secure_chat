@@ -1,6 +1,8 @@
 import os
+from io import BytesIO
+from datetime import datetime
 
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 
 from ai_client import AIClient
 from chat import ConversationManager
@@ -156,6 +158,36 @@ def delete_conversation(conversation_id):
     if conversations.clear_conversation(conversation_id):
         return jsonify({"success": True})
     return jsonify({"error": "Conversation not found."}), 404
+
+
+@app.route("/api/conversations/<conversation_id>/export", methods=["GET"])
+def export_conversation(conversation_id):
+    """Export a conversation as a Markdown file."""
+    data = conversations.get_full_conversation(conversation_id)
+    if data is None:
+        return jsonify({"error": "Conversation not found."}), 404
+
+    # Build Markdown content
+    lines = ["# Conversation Export\n"]
+    lines.append(f"**Exported:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+    lines.append("---\n")
+
+    for msg in data.get("messages", []):
+        role = "**You:**" if msg["role"] == "user" else "**🤖 Assistant:**"
+        timestamp = msg.get("timestamp", "")[:16].replace("T", " ")
+        lines.append(f"\n### {role}\n")
+        if timestamp:
+            lines.append(f"*{timestamp}*\n")
+        lines.append(f"\n{msg['content']}\n")
+
+    markdown_content = "\n".join(lines)
+
+    # Return as downloadable file
+    return Response(
+        markdown_content,
+        mimetype="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename=conversation-{conversation_id[:8]}.md"}
+    )
 
 
 # ── Knowledge Base ────────────────────────────────────────────────

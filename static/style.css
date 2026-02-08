@@ -182,9 +182,33 @@ body {
     border-bottom: 1px solid #0f3460;
 }
 
+.chat-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
 .chat-header h1 {
     font-size: 1.2rem;
-    margin-bottom: 6px;
+    margin-bottom: 0;
+}
+
+.export-btn {
+    padding: 6px 14px;
+    background: #0f3460;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    color: #53a8e2;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.export-btn:hover {
+    background: #16213e;
+    border-color: #e94560;
+    color: #eee;
 }
 
 .capability-tags {

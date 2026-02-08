@@ -15,6 +15,7 @@
     const convListEl = document.getElementById("conversation-list");
     const kbFileInput = document.getElementById("kb-file-input");
     const kbListEl = document.getElementById("kb-list");
+    const exportBtn = document.getElementById("export-btn");
 
     // ── State ──────────────────────────────────────────────────
     let currentConversationId = null;
@@ -172,8 +173,9 @@
                 renderMessage("assistant", data.assistant_message.content);
             }
 
-            // Refresh sidebar
+            // Refresh sidebar and export button
             loadConversationList();
+            updateExportButton();
 
         } catch (err) {
             showError("Connection error: " + err.message);
@@ -202,6 +204,9 @@
             document.querySelectorAll(".conv-item").forEach(function (el) {
                 el.classList.toggle("active", el.dataset.id === convId);
             });
+
+            // Show export button
+            updateExportButton();
         } catch (err) {
             showError("Failed to load conversation.");
         }
@@ -273,6 +278,9 @@
         document.querySelectorAll(".conv-item").forEach(function (el) {
             el.classList.remove("active");
         });
+
+        // Hide export button
+        updateExportButton();
     }
 
     // ── Knowledge Base ─────────────────────────────────────────
@@ -336,6 +344,18 @@
         }
     }
 
+    // ── Export ────────────────────────────────────────────────
+    function updateExportButton() {
+        // Show export button only when there's an active conversation
+        exportBtn.hidden = !currentConversationId;
+    }
+
+    function exportConversation() {
+        if (!currentConversationId) return;
+        // Trigger download by navigating to export endpoint
+        window.location.href = "/api/conversations/" + currentConversationId + "/export";
+    }
+
     // ── Quick Actions ──────────────────────────────────────────
     function bindQuickActions() {
         document.querySelectorAll(".quick-action").forEach(function (btn) {
@@ -375,6 +395,8 @@
     });
 
     newChatBtn.addEventListener("click", newConversation);
+
+    exportBtn.addEventListener("click", exportConversation);
 
     kbFileInput.addEventListener("change", function () {
         if (kbFileInput.files.length > 0) {

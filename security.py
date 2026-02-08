@@ -17,7 +17,7 @@ class SecurityUtils:
         """
         return bleach.clean(content, tags=SecurityUtils.ALLOWED_TAGS, strip=True).strip()
 
-    ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".docx", ".gif", ".csv"}
+    ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".docx", ".gif", ".csv", ".xlsx"}
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
     # Magic byte signatures for content-type verification
@@ -27,6 +27,8 @@ class SecurityUtils:
         ".jpeg": b"\xff\xd8\xff",
         ".gif": b"GIF8",
         ".pdf": b"%PDF",
+        ".xlsx": b"PK",  # XLSX files are ZIP archives
+        ".docx": b"PK",  # DOCX files are also ZIP archives
     }
 
     @staticmethod

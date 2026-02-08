@@ -299,6 +299,34 @@ body {
     margin-bottom: 0;
 }
 
+/* ── Suggestion Buttons ────────────────────────── */
+
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #0f3460;
+}
+
+.suggestion-btn {
+    background: #0d1b2a;
+    border: 1px solid #0f3460;
+    border-radius: 16px;
+    padding: 8px 14px;
+    color: #53a8e2;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-btn:hover {
+    background: #0f3460;
+    border-color: #e94560;
+    color: #eee;
+}
+
 /* ── Welcome Screen ─────────────────────────────── */
 
 .welcome-screen {

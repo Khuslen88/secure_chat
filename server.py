@@ -1,4 +1,6 @@
 import os
+import re
+import json
 
 from flask import Flask, render_template, request, jsonify, send_file
 
@@ -21,6 +23,25 @@ except RuntimeError as e:
     print(f"\n⚠️  WARNING: {e}", file=sys.stderr)
     print("   The chatbot UI will load, but AI features are disabled.\n", file=sys.stderr)
     ai = None
+
+
+def parse_suggestions(response_text):
+    """Extract follow-up suggestions from AI response.
+
+    Returns (clean_response, suggestions_list) tuple.
+    """
+    pattern = r'<!--\s*SUGGESTIONS:\s*(\[.*?\])\s*-->'
+    match = re.search(pattern, response_text, re.DOTALL)
+
+    if match:
+        try:
+            suggestions = json.loads(match.group(1))
+            clean_response = re.sub(pattern, '', response_text).strip()
+            return clean_response, suggestions
+        except json.JSONDecodeError:
+            pass
+
+    return response_text, []
 
 
 # ── Page ──────────────────────────────────────────────────────────
@@ -69,13 +90,17 @@ def chat_message():
     except Exception as e:
         return jsonify({"error": f"AI service error: {e}"}), 502
 
-    # Save assistant message
-    assistant_msg = conversations.add_message(conversation_id, "assistant", ai_response)
+    # Parse out suggestions from response
+    clean_response, suggestions = parse_suggestions(ai_response)
+
+    # Save assistant message (without suggestion markup)
+    assistant_msg = conversations.add_message(conversation_id, "assistant", clean_response)
 
     return jsonify({
         "conversation_id": conversation_id,
         "user_message": user_msg,
         "assistant_message": assistant_msg,
+        "suggestions": suggestions,
     }), 200
 
 

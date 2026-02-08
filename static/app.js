@@ -81,7 +81,7 @@
     }
 
     // ── Message Rendering ──────────────────────────────────────
-    function renderMessage(role, content) {
+    function renderMessage(role, content, suggestions) {
         if (welcomeScreen) welcomeScreen.remove();
 
         const div = document.createElement("div");
@@ -100,6 +100,22 @@
             body.textContent = content;
         }
         div.appendChild(body);
+
+        // Render suggestion buttons for assistant messages
+        if (role === "assistant" && suggestions && suggestions.length > 0) {
+            const suggestionsDiv = document.createElement("div");
+            suggestionsDiv.className = "suggestions";
+            suggestions.forEach(function (suggestion) {
+                const btn = document.createElement("button");
+                btn.className = "suggestion-btn";
+                btn.textContent = suggestion;
+                btn.addEventListener("click", function () {
+                    sendMessage(suggestion);
+                });
+                suggestionsDiv.appendChild(btn);
+            });
+            div.appendChild(suggestionsDiv);
+        }
 
         messagesEl.appendChild(div);
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -167,9 +183,9 @@
             // Update conversation ID
             if (data.conversation_id) currentConversationId = data.conversation_id;
 
-            // Render AI response
+            // Render AI response with suggestions
             if (data.assistant_message) {
-                renderMessage("assistant", data.assistant_message.content);
+                renderMessage("assistant", data.assistant_message.content, data.suggestions || []);
             }
 
             // Refresh sidebar

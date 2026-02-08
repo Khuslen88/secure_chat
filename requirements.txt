@@ -3,3 +3,4 @@ bleach
 groq
 PyPDF2
 python-docx
+openpyxl

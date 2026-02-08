@@ -18,7 +18,7 @@ class KnowledgeBase:
     """
 
     INDEX_FILE = os.path.join(Config.KNOWLEDGE_BASE_DIR, "index.json")
-    ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx", ".csv"}
+    ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx", ".csv", ".xlsx"}
 
     def __init__(self):
         os.makedirs(Config.KNOWLEDGE_BASE_DIR, exist_ok=True)
@@ -114,6 +114,19 @@ class KnowledgeBase:
             import docx
             doc = docx.Document(filepath)
             return "\n".join(p.text for p in doc.paragraphs if p.text)
+
+        if ext == ".xlsx":
+            import openpyxl
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+            text_parts = []
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                text_parts.append(f"--- Sheet: {sheet_name} ---")
+                for row in sheet.iter_rows(values_only=True):
+                    row_text = "\t".join(str(cell) if cell is not None else "" for cell in row)
+                    if row_text.strip():
+                        text_parts.append(row_text)
+            return "\n".join(text_parts)
 
         return ""
 
